@@ -29,6 +29,6 @@ fn handle_command(matches: &clap::ArgMatches) -> Result<(), Box<dyn std::error::
     let tag = matches.get_one::<String>("tags").map(|s| s.as_str());
     let cargo_toml_path = Path::new("Cargo.toml");
 
-    cargo_version_upgrade::update_version(cargo_toml_path, increment, tag)?;
+    cargo_version_upgrade::update_version_and_commit(cargo_toml_path, increment, tag)?;
     Ok(())
 }
