@@ -30,6 +30,5 @@ fn handle_command(matches: &clap::ArgMatches) -> Result<(), Box<dyn std::error::
     let cargo_toml_path = Path::new("Cargo.toml");
 
     cargo_version_upgrade::update_version(cargo_toml_path, increment, tag)?;
-    println!("Version updated successfully.");
     Ok(())
 }

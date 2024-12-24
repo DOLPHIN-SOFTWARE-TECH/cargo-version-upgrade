@@ -43,23 +43,15 @@ pub fn update_version(
     let version_str = doc["package"]["version"]
         .as_str()
         .ok_or(VersionUpgradeError::InvalidVersionFormat)?;
-    println!("Version String: {}", version_str);
     let version =
         Version::parse(version_str).map_err(|_| VersionUpgradeError::InvalidVersionFormat)?;
-    println!(
-        "Version: {} , option : {:?}, ob : {}",
-        version, tag, version.pre
-    );
     let suffix = &version.pre.clone();
-    println!("Suffix: {}", suffix.is_empty());
     let incremented_version = match increment {
         "patch" => increment_version(version, IncrementType::Patch, tag, suffix),
         "minor" => increment_version(version, IncrementType::Minor, tag, suffix),
         "major" => increment_version(version, IncrementType::Major, tag, suffix),
         _ => return Err(VersionUpgradeError::InvalidIncrement),
     }?;
-
-    println!("Increment: {}", incremented_version);
 
     doc["package"]["version"] = Item::from(Value::from(incremented_version.to_string()));
 
@@ -122,6 +114,5 @@ fn increment_version(
         }
     }
 
-    println!("Version: {}", version.to_string());
     Ok(version)
 }
