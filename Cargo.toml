@@ -1,6 +1,16 @@
 [package]
 name = "cargo-version-upgrade"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 
+[lib]
+name = "cargo_version_upgrade"
+path = "src/lib.rs"
+
 [dependencies]
+semver = "1.0.24"
+toml_edit = "0.22.22"
+clap = { version = "4.3", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.6"
