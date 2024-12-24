@@ -2,6 +2,13 @@
 name = "cargo-version-upgrade"
 version = "1.0.0"
 edition = "2021"
+exclude = [
+    ".idea/*"
+]
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+]
 
 [lib]
 name = "cargo_version_upgrade"
