@@ -2,6 +2,12 @@
 name = "cargo-version-upgrade"
 version = "1.0.1"
 edition = "2021"
+authors = ["Harsh <harshpatel29301@gmail.com>", "Sailendra <sailendradash23@gmail.com>"]
+description = "semantic version management"
+repository = "https://github.com/DOLPHIN-SOFTWARE-TECH/cargo-version-upgrade.git"
+license = "MIT OR Apache-2.0"
+keywords=["semantic","version","upgrade","cargo"]
+categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 exclude = [
     ".idea/*"
 ]
