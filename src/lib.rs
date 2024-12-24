@@ -1,9 +1,9 @@
+use semver::{Prerelease, Version};
+use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::path::{Path};
-use semver::{Version, Prerelease};
+use std::path::Path;
 use toml_edit::{DocumentMut, Item, Value};
-use std::error::Error;
 
 #[derive(Debug)]
 pub enum VersionUpgradeError {
@@ -28,20 +28,38 @@ impl fmt::Display for VersionUpgradeError {
 
 impl Error for VersionUpgradeError {}
 
-pub fn update_version(cargo_toml_path: &Path, increment: &str, tag: Option<&str>) -> Result<(), VersionUpgradeError> {
-    let content = fs::read_to_string(cargo_toml_path).map_err(VersionUpgradeError::FileReadError)?;
+pub fn update_version(
+    cargo_toml_path: &Path,
+    increment: &str,
+    tag: Option<&str>,
+) -> Result<(), VersionUpgradeError> {
+    let content =
+        fs::read_to_string(cargo_toml_path).map_err(VersionUpgradeError::FileReadError)?;
 
-    let mut doc: DocumentMut = content.parse().map_err(|_| VersionUpgradeError::InvalidVersionFormat)?;
+    let mut doc: DocumentMut = content
+        .parse()
+        .map_err(|_| VersionUpgradeError::InvalidVersionFormat)?;
 
-    let version_str = doc["package"]["version"].as_str().ok_or(VersionUpgradeError::InvalidVersionFormat)?;
-    let version = Version::parse(version_str).map_err(|_| VersionUpgradeError::InvalidVersionFormat)?;
-
+    let version_str = doc["package"]["version"]
+        .as_str()
+        .ok_or(VersionUpgradeError::InvalidVersionFormat)?;
+    println!("Version String: {}", version_str);
+    let version =
+        Version::parse(version_str).map_err(|_| VersionUpgradeError::InvalidVersionFormat)?;
+    println!(
+        "Version: {} , option : {:?}, ob : {}",
+        version, tag, version.pre
+    );
+    let suffix = &version.pre.clone();
+    println!("Suffix: {}", suffix.is_empty());
     let incremented_version = match increment {
-        "patch" => increment_version(version, IncrementType::Patch, tag),
-        "minor" => increment_version(version, IncrementType::Minor, tag),
-        "major" => increment_version(version, IncrementType::Major, tag),
+        "patch" => increment_version(version, IncrementType::Patch, tag, suffix),
+        "minor" => increment_version(version, IncrementType::Minor, tag, suffix),
+        "major" => increment_version(version, IncrementType::Major, tag, suffix),
         _ => return Err(VersionUpgradeError::InvalidIncrement),
     }?;
+
+    println!("Increment: {}", incremented_version);
 
     doc["package"]["version"] = Item::from(Value::from(incremented_version.to_string()));
 
@@ -60,24 +78,50 @@ fn increment_version(
     mut version: Version,
     increment_type: IncrementType,
     tag: Option<&str>,
+    suffix: &Prerelease,
 ) -> Result<Version, VersionUpgradeError> {
-    match increment_type {
-        IncrementType::Patch => version.patch += 1,
-        IncrementType::Minor => {
-            version.minor += 1;
-            version.patch = 0; // Reset patch on minor version increment
-        }
-        IncrementType::Major => {
-            version.major += 1;
-            version.minor = 0; // Reset minor and patch on major version increment
-            version.patch = 0;
-        }
-    }
-
     if let Some(tag) = tag {
-        let prerelease = Prerelease::new(tag).map_err(|_| VersionUpgradeError::InvalidPrereleaseTag)?;
-        version.pre = prerelease;
+        match suffix.is_empty() {
+            true => {
+                let mut v = String::from(tag);
+                v.push_str(".0");
+                version.pre = Prerelease::new(v.as_str()).unwrap();
+            },
+            false => {
+                let mut v = suffix.split('.').map(|s| s.to_string()).collect::<Vec<String>>(); // Store Strings
+                let pop_val = v.pop().unwrap().parse::<i32>().unwrap() + 1;
+                let old_tag = &v.join(".");
+                if old_tag == tag {
+                    v.push(pop_val.to_string());  // Push String
+                }else{
+                    v.clear();
+                    v.push(tag.to_string());
+                    v.push("0".to_string())
+                }
+                let vals = v.join(".");
+                version.pre = Prerelease::new(vals.as_str()).unwrap();
+            },
+        };
+    }else{
+        match increment_type {
+            IncrementType::Patch => {
+                version.patch += 1;
+                version.pre = Prerelease::EMPTY
+            },
+            IncrementType::Minor => {
+                version.minor += 1;
+                version.patch = 0; // Reset patch on minor version increment
+                version.pre = Prerelease::EMPTY
+            }
+            IncrementType::Major => {
+                version.major += 1;
+                version.minor = 0; // Reset minor and patch on major version increment
+                version.patch = 0;
+                version.pre = Prerelease::EMPTY
+            }
+        }
     }
 
+    println!("Version: {}", version.to_string());
     Ok(version)
 }
