@@ -1,6 +1,6 @@
 [package]
 name = "cargo-version-upgrade"
-version = "1.0.2-beta.1"
+version = "1.0.3"
 edition = "2021"
 authors = ["Harsh <harshpatel29301@gmail.com>", "Sailendra <sailendradash23@gmail.com>"]
 description = "semantic version management"
