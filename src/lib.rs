@@ -2,8 +2,8 @@ use semver::{Prerelease, Version};
 use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::process::Command;
 use std::path::Path;
+use std::process::Command;
 use toml_edit::{DocumentMut, Item, Value};
 
 #[derive(Debug)]
@@ -56,6 +56,7 @@ pub fn update_version_and_commit(
         "patch" => increment_version(version, IncrementType::Patch, tag, suffix),
         "minor" => increment_version(version, IncrementType::Minor, tag, suffix),
         "major" => increment_version(version, IncrementType::Major, tag, suffix),
+        "pre" => increment_version(version, IncrementType::Pre, tag, suffix),
         _ => return Err(VersionUpgradeError::InvalidIncrement),
     }?;
 
@@ -72,6 +73,7 @@ enum IncrementType {
     Patch,
     Minor,
     Major,
+    Pre,
 }
 
 fn increment_version(
@@ -80,35 +82,53 @@ fn increment_version(
     tag: Option<&str>,
     suffix: &Prerelease,
 ) -> Result<Version, VersionUpgradeError> {
-    if let Some(tag) = tag {
-        let mut prerelease = suffix.as_str().to_string();
-        let parts: Vec<_> = prerelease.split('.').collect();
-        if parts.first() != Some(&tag) {
-            prerelease = format!("{}.0", tag);
-        } else if let Some(last) = parts.last() {
-            prerelease = match last.parse::<u32>() {
-                Ok(num) => format!("{}.{}", tag, num + 1),
-                Err(_) => return Err(VersionUpgradeError::InvalidPrereleaseTag),
-            };
+    /*
+     * patch (0.0.4 -> 0.0.5)
+     * patch --tags <name> (0.0.4 -> 0.0.5-tagname.0 , 0.0.5-tagname.0 -> 0.0.6-tagname.0)
+     * minor (0.0.4 -> 0.1.4)
+     * minor --tags <name> (0.0.4 -> 0.1.0-tagname.0 , 0.0.4-tagname.0 -> 0.1.0-tagname.0)
+     * major (0.0.4 -> 0.0.5)
+     * major --tags <name> (0.0.4 -> 1.0.0-tagname.0 , 0.0.4-tagname.0 -> 1.0.0-tagname.0)
+     * pre (0.0.4 -> err msg, 0.0.4-tagname.0 -> 0.0.4-tagname.1, 0.4.4-tagname.4 -> 0.4.4-tagname.5)
+     */
+    fn set_prerelease(tag: &Option<&str>, version: &mut Version) {
+        if let Some(tag) = tag {
+            let pr = format!("{}.0", tag);
+            version.pre = Prerelease::new(&pr).unwrap();
+        } else {
+            version.pre = Prerelease::EMPTY;
         }
-        version.pre = Prerelease::new(&prerelease).unwrap();
-    } else {
-        match increment_type {
-            IncrementType::Patch => {
-                version.patch += 1;
-                version.pre = Prerelease::EMPTY;
+    }
+
+    match increment_type {
+        IncrementType::Patch => {
+            version.patch += 1;
+            set_prerelease(&tag, &mut version);
+        }
+        IncrementType::Minor => {
+            version.minor += 1;
+            version.patch = 0;
+            set_prerelease(&tag, &mut version);
+        }
+        IncrementType::Major => {
+            version.major += 1;
+            version.minor = 0;
+            version.patch = 0;
+            set_prerelease(&tag, &mut version);
+        }
+        IncrementType::Pre => {
+            let mut prerelease = suffix.as_str().to_string();
+            let parts: Vec<_> = prerelease.split('.').collect();
+            let mut parts2 = parts.clone();
+            if let Some(last) = parts.last() {
+                parts2.pop();
+                let tag_ref = parts2.join(".");
+                prerelease = match last.parse::<u32>() {
+                    Ok(num) => format!("{}.{}", tag_ref, num + 1),
+                    Err(_) => return Err(VersionUpgradeError::InvalidPrereleaseTag),
+                };
             }
-            IncrementType::Minor => {
-                version.minor += 1;
-                version.patch = 0;
-                version.pre = Prerelease::EMPTY;
-            }
-            IncrementType::Major => {
-                version.major += 1;
-                version.minor = 0;
-                version.patch = 0;
-                version.pre = Prerelease::EMPTY;
-            }
+            version.pre = Prerelease::new(&prerelease).unwrap();
         }
     }
     Ok(version)
