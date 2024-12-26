@@ -15,6 +15,7 @@ pub enum VersionUpgradeError {
     InvalidPrereleaseTag,
     GitCommitError,
     GitTagError,
+    BuildError,
 }
 
 impl fmt::Display for VersionUpgradeError {
@@ -27,6 +28,7 @@ impl fmt::Display for VersionUpgradeError {
             VersionUpgradeError::InvalidPrereleaseTag => write!(f, "Invalid prerelease tag format"),
             VersionUpgradeError::GitCommitError => write!(f, "Failed to create Git commit"),
             VersionUpgradeError::GitTagError => write!(f, "Failed to create Git tag"),
+            VersionUpgradeError::BuildError => write!(f, "Failed to build cargo"),
         }
     }
 }
@@ -136,6 +138,15 @@ fn increment_version(
 
 fn commit_and_tag(version: &Version) -> Result<(), VersionUpgradeError> {
     let version_str = version.to_string();
+
+    let build_output = Command::new("cargo")
+        .arg("build")
+        .output()
+        .map_err(|_| VersionUpgradeError::BuildError)?;
+
+    if !build_output.status.success() {
+        return Err(VersionUpgradeError::BuildError);
+    }
 
     // Commit the changes
     let commit_message = format!("v{}", version_str);
